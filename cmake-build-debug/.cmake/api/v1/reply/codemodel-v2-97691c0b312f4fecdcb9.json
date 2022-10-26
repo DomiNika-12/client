@@ -49,8 +49,8 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/Users/domi/CLionProjects/client/cmake-build-debug",
-		"source" : "/Users/domi/CLionProjects/client"
+		"build" : "/Users/dominikabobik/CLionProjects/client/cmake-build-debug",
+		"source" : "/Users/dominikabobik/CLionProjects/client"
 	},
 	"version" : 
 	{

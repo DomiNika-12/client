@@ -1,8 +1,3 @@
-// CS3411 Project 5
-// Author: Dominika Bobik
-// dbobik@mtu.edu
-// Created on: 04/07/2022
-
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
