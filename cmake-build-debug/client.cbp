@@ -83,6 +83,12 @@
 		<Unit filename="/Users/dominikabobik/CLionProjects/client/client.cpp">
 			<Option target="client"/>
 		</Unit>
+		<Unit filename="/Users/dominikabobik/CLionProjects/client/client.h">
+			<Option target="client"/>
+		</Unit>
+		<Unit filename="/Users/dominikabobik/CLionProjects/client/main.cpp">
+			<Option target="client"/>
+		</Unit>
 		<Unit filename="/Users/dominikabobik/CLionProjects/client/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\"/>
 		</Unit>

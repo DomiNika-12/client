@@ -1,21 +1,14 @@
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <cerrno>
+#include "client.h"
 
-// Chat CLI app
-// Client
+Client::Client()
+{
+    iSocketFd = 0;
+    iServSize = sizeof(serv);
+    bzero((char *) &serv, iServSize);
+}
 
-int iSocketFd;
-struct sockaddr_in serv;
-socklen_t iServSize;
-
-int readUserInput (char** buffer) {
+int Client::readUserInput(char** buffer)
+{
     char c = 0;
     int iInitialSize = 5;
     int i = 0;
@@ -45,21 +38,9 @@ int readUserInput (char** buffer) {
     return i;
 }
 
-int InitializeParameters()
+int Client::CreateConnection()
 {
     int iError = 0;
-
-    iSocketFd = 0;
-    iServSize = sizeof(serv);
-    bzero((char *) &serv, iServSize);
-
-    return iError;
-}
-
-int CreateConnection()
-{
-    int iError = 0;
-    int iPort = 0;
 
     // Create socket: IPv4 domain, UDP, default protocol
     iSocketFd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -70,20 +51,19 @@ int CreateConnection()
         return iError;
     }
 
-    iPort = 12020;
     serv.sin_family = AF_INET;
     serv.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv.sin_port = htons(iPort);
+    serv.sin_port = htons(PORT);
 
     printf("Client running\n");
     printf("Port:       %d (network byte order)\n", serv.sin_port);
-    printf("            %d (hostorder)\n", iPort);
+    printf("            %d (hostorder)\n", PORT);
     printf("Domain:     AF_INET\n");
     printf("Protocol:   UDP\n\n");
     return iError;
 }
 
-int SendMsg(char* pcBuffer, int iMsgSize)
+int Client::SendMsg(char* pcBuffer, int iMsgSize)
 {
     int iError = 0;
     int iMsgSizeNBO = 0;
@@ -108,7 +88,7 @@ int SendMsg(char* pcBuffer, int iMsgSize)
     return iError;
 }
 
-int ReceiveACK()
+int Client::ReceiveACK()
 {
     int iError = 0;
     int iACKSize = 0;
@@ -133,42 +113,4 @@ int ReceiveACK()
     printf("Number of bytes: %d\n Confirmation content:\n%s\n\n", iError, pcACK);
     free(pcACK);
     return iError;
-}
-
-int main(int argc, char *argv[]) {
-
-    int iError = 0;
-    char* pcMsg = nullptr;
-    int iMsgSize = 0;
-
-    iError = InitializeParameters();
-    if (iError != 0)
-    {
-        exit(EXIT_FAILURE);
-    }
-
-    iError = CreateConnection();
-    if (iError != 0)
-    {
-        exit(EXIT_FAILURE);
-    }
-
-    while (1) {
-        printf("Enter your message:\n");
-        readUserInput(&pcMsg);
-        iMsgSize = strlen(pcMsg);
-        iError = SendMsg(pcMsg, iMsgSize);
-        if (iError < 0)
-        {
-            exit(EXIT_FAILURE);
-        }
-
-        iError = ReceiveACK();
-        if (iError < 0)
-        {
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    return 0;
 }

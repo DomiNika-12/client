@@ -1,5 +1,5 @@
-CMakeFiles/client.dir/client.cpp.o: \
-  /Users/dominikabobik/CLionProjects/client/client.cpp \
+CMakeFiles/client.dir/main.cpp.o: \
+  /Users/dominikabobik/CLionProjects/client/main.cpp \
   /Users/dominikabobik/CLionProjects/client/client.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX12.3.sdk/usr/include/c++/v1/cstdio \
   /Library/Developer/CommandLineTools/SDKs/MacOSX12.3.sdk/usr/include/c++/v1/__config \
