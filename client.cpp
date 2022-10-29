@@ -6,83 +6,169 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <cerrno>
 
+// Chat CLI app
 // Client
-// Communication with sockets through UDP protocol
 
-int main(int argc, char* argv[]) 
+int iSocketFd;
+struct sockaddr_in serv;
+socklen_t iServSize;
+
+int readUserInput (char** buffer) {
+    char c = 0;
+    int iInitialSize = 5;
+    int i = 0;
+
+    *buffer = (char*) malloc(sizeof(char) * 5);
+    c = fgetc(stdin);
+
+    while (c != 10)
+    {
+        if (i > iInitialSize)
+        {
+            *buffer = (char*) realloc(*buffer, iInitialSize * 2);
+            iInitialSize = iInitialSize * 2;
+        }
+        (*buffer)[i] = c;
+        i++;
+        c = fgetc(stdin);
+        //printf("%c", c);
+    }
+    if (i > iInitialSize)
+    {
+        *buffer = (char*) realloc(*buffer, iInitialSize * 2);
+        iInitialSize = iInitialSize * 2;
+    }
+    (*buffer)[i] = '\n';
+    i++;
+    return i;
+}
+
+int InitializeParameters()
 {
-    if (argc != 2) 
-	{ 
-		printf("Wrong number of arguments provided\n"); 
-		exit(EXIT_FAILURE); 
-	}
+    int iError = 0;
 
-	struct hostent* host = nullptr;
-	struct sockaddr_in serv = {};
-	bzero((char *) &serv, sizeof(serv));
+    iSocketFd = 0;
+    iServSize = sizeof(serv);
+    bzero((char *) &serv, iServSize);
 
-	// Create socket: IPv4 domain, UDP, default protocol
-	int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (socket_fd == -1)
-	{
-		printf("Error while creating socket\n");
-		exit(EXIT_FAILURE);
-	}
+    return iError;
+}
 
-	if ((host = ::gethostbyname("localhost")) == nullptr)
-	{
-		printf("Invalid hostname: localhost\n");
-		close(socket_fd);
-		exit(EXIT_FAILURE);
-	}
+int CreateConnection()
+{
+    int iError = 0;
+    int iPort = 0;
 
-	u_short port = 12020; // Port in nbo
+    // Create socket: IPv4 domain, UDP, default protocol
+    iSocketFd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (iSocketFd == -1)
+    {
+        printf("Error while creating socket\n");
+        iError = iSocketFd;
+        return iError;
+    }
 
-	// Server info
-	serv.sin_family = AF_INET;
-	bcopy(host->h_addr_list[0], (char *)&serv.sin_addr, host->h_length);
-	serv.sin_port = port;
+    iPort = 12020;
+    serv.sin_family = AF_INET;
+    serv.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv.sin_port = htons(iPort);
 
-	// Send request to the server
-	char* symbolic_hostname = static_cast<char *>(malloc(sizeof(char) * (strlen(host->h_name) + 1)));
-	strcpy(symbolic_hostname, 	host->h_name);
-	int size = (int)strlen(symbolic_hostname);
-	printf("Sending hostname <%s>\n", symbolic_hostname);
-	fd_set mask;
-	struct timeval timeout;
-	FD_ZERO(&mask);
-	FD_SET(socket_fd, &mask);
-	timeout.tv_sec = 2;
-	timeout.tv_usec = 0;
+    printf("Client running\n");
+    printf("Port:       %d (network byte order)\n", serv.sin_port);
+    printf("            %d (hostorder)\n", iPort);
+    printf("Domain:     AF_INET\n");
+    printf("Protocol:   UDP\n\n");
+    return iError;
+}
 
-	sendto(socket_fd, symbolic_hostname, size, 0, (struct sockaddr *)&serv, sizeof(serv));
-	int retval = select(socket_fd + 1, &mask, NULL, NULL, &timeout);
-	if (retval == 0)
-	{
-		FD_ZERO(&mask);
-		FD_SET(socket_fd, &mask);
-		timeout.tv_sec = 2;
-		timeout.tv_usec = 0;
-		sendto(socket_fd, symbolic_hostname, size, 0, (struct sockaddr *)&serv, sizeof(serv));
-		retval = select(socket_fd + 1, &mask, NULL, NULL, &timeout);
-		if (retval == 0) {
-			printf("Server is not responding...exiting...\n");
-			free(symbolic_hostname);
-			close(socket_fd);
-			exit(EXIT_FAILURE);
-		}
-	}
-	free(symbolic_hostname);
-	int msg_size = 0;
-	socklen_t len = sizeof(serv);
-	recvfrom(socket_fd, &msg_size, 4, 0, (struct sockaddr*)&serv, &len);
-	printf("Reading <%d> bytes from the server\n", htonl(msg_size));
-	char* msg = static_cast<char *>(malloc(sizeof(char) * (htonl(msg_size) + 1)));
-	recvfrom(socket_fd, (char *) msg, msg_size, 0, (struct sockaddr*)&serv, &len);
-	close(socket_fd);
+int SendMsg(char* pcBuffer, int iMsgSize)
+{
+    int iError = 0;
+    int iMsgSizeNBO = 0;
 
+    iMsgSizeNBO = htonl(iMsgSize);
+    iError = sendto(iSocketFd, &iMsgSizeNBO, sizeof(iMsgSizeNBO), 0, (struct sockaddr *) &serv, iServSize);
+    if (iError < 0)
+    {
+        printf("Size message not sent, error (%d)\n", iError);
+        return iError;
+    }
+    printf("Number of bytes: %d\n Request content:\n%d\n", iError, iMsgSize);
 
-	free(msg);
-	return 0;
+    iError = sendto(iSocketFd, pcBuffer, iMsgSize, 0, (struct sockaddr *) &serv, iServSize);
+    if (iError < 0)
+    {
+        printf("Content message not sent, error (%d)\n", iError);
+        return iError;
+    }
+    printf("Number of bytes: %d\n Message content:\n%s\n", iError, pcBuffer);
+
+    return iError;
+}
+
+int ReceiveACK()
+{
+    int iError = 0;
+    int iACKSize = 0;
+    char* pcACK = nullptr;
+
+    iError = recvfrom(iSocketFd, &iACKSize, 4, 0, (struct sockaddr *) &serv, &iServSize);
+    if (iError < 0 || htonl(iACKSize) == 0)
+    {
+        printf("ACK message not received");
+        return iError;
+    }
+    printf("Number of bytes: %d\n Request content:\n%d\n", iError, htonl(iACKSize));
+
+    pcACK = (char*)(malloc(sizeof(char) * (htonl(iACKSize) + 1)));
+    iError = recvfrom(iSocketFd, (char *) pcACK, iACKSize, 0, (struct sockaddr *) &serv, &iServSize);
+    if (iError < 0)
+    {
+        printf("ACK message not received");
+        return iError;
+    }
+
+    printf("Number of bytes: %d\n Confirmation content:\n%s\n\n", iError, pcACK);
+    free(pcACK);
+    return iError;
+}
+
+int main(int argc, char *argv[]) {
+
+    int iError = 0;
+    char* pcMsg = nullptr;
+    int iMsgSize = 0;
+
+    iError = InitializeParameters();
+    if (iError != 0)
+    {
+        exit(EXIT_FAILURE);
+    }
+
+    iError = CreateConnection();
+    if (iError != 0)
+    {
+        exit(EXIT_FAILURE);
+    }
+
+    while (1) {
+        printf("Enter your message:\n");
+        readUserInput(&pcMsg);
+        iMsgSize = strlen(pcMsg);
+        iError = SendMsg(pcMsg, iMsgSize);
+        if (iError < 0)
+        {
+            exit(EXIT_FAILURE);
+        }
+
+        iError = ReceiveACK();
+        if (iError < 0)
+        {
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    return 0;
 }
